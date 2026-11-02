@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kali Linux Web OS - Pentesting Environment</title>
+    <!-- Script Tailwind الصحيح -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- استيراد الخطوط Fira Code و Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #0f172a; overflow: hidden; }
+        .terminal-font { font-family: 'Fira Code', monospace; }
+        .window-shadow { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+        .kali-menu { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="w-screen h-screen select-none text-slate-200">
+
+    <!-- Top Status Bar -->
+    <div class="w-full h-8 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between px-4 text-xs font-semibold fixed top-0 z-50 backdrop-blur-sm">
+        <div class="flex items-center gap-4">
+            <button onclick="toggleMenu()" class="hover:bg-slate-800 p-1 rounded transition text-cyan-400 font-bold flex items-center gap-1">
+                🐉 <span class="text-slate-200">Applications</span>
+            </button>
+            <span class="text-slate-500">|</span>
+            <button onclick="openTerminal()" class="hover:bg-slate-800 px-2 py-1 rounded">💻 Terminal</button>
+            <button onclick="openApp('App Store')" class="hover:bg-slate-800 px-2 py-1 rounded text-emerald-400">🛍️ Kali Store</button>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-cyan-400">⚡ root@kali</span>
+            <span id="live-clock">12:00 PM</span>
+        </div>
+    </div>
+
+    <!-- Desktop Area -->
+    <div class="w-full h-full pt-8 relative" onclick="closeMenuIfClickOutside(event)">
+        <!-- Desktop Shortcuts -->
+        <div class="absolute top-12 left-6 flex flex-col gap-6">
+            <div onclick="openTerminal()" class="flex flex-col items-center justify-center w-20 cursor-pointer p-2 rounded hover:bg-slate-800/40 transition group">
+                <span class="text-3xl filter drop-shadow">💻</span>
+                <span class="text-[11px] text-center mt-1 font-medium text-slate-300 group-hover:text-cyan-400">Terminal</span>
+            </div>
+            <div onclick="openApp('App Store')" class="flex flex-col items-center justify-center w-20 cursor-pointer p-2 rounded hover:bg-slate-800/40 transition group">
+                <span class="text-3xl filter drop-shadow">🛍️</span>
+                <span class="text-[11px] text-center mt-1 font-medium text-slate-300 group-hover:text-emerald-400">Apt Store</span>
+            </div>
+        </div>
+
+        <!-- APPLICATIONS MENU -->
+        <div id="kali-whisker-menu" class="hidden kali-menu w-72 border border-slate-800 rounded-lg fixed top-9 left-2 p-3 z-50 window-shadow">
+            <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider px-2 mb-2">Hacking Categories</div>
+            <div class="flex flex-col gap-1 text-sm text-slate-300" id="menu-apps-list">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+
+        <!-- TERMINAL WINDOW -->
+        <div id="terminal-window" class="hidden w-[90%] sm:w-[640px] h-[400px] bg-slate-950/95 border border-slate-800 rounded-lg absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/4 window-shadow flex flex-col z-40 backdrop-blur-md">
+            <div class="h-7 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 cursor-move">
+                <span class="text-xs terminal-font text-slate-400 flex items-center gap-1">💻 root@kali: ~</span>
+                <button onclick="closeTerminal()" class="text-red-500 hover:text-red-400 text-sm font-bold">✕</button>
+            </div>
+            <div id="terminal-body" class="flex-1 p-3 overflow-y-auto terminal-font text-xs text-emerald-400 leading-relaxed">
+                <div>Kali Linux Web-OS Architecture 2026. Type <span class="text-yellow-400">'help'</span> to see available cyber tools.</div>
+                <div class="mb-2 text-slate-400">You can install tools using: <span class="text-cyan-400">sudo apt install [tool_name]</span></div>
+                <div id="terminal-history"></div>
+                <div class="flex items-start mt-1">
+                    <span class="text-cyan-400 mr-2 font-bold whitespace-nowrap">┌──(root💀kali)-[~]<br>└─#</span>
+                    <input type="text" id="terminal-input" class="bg-transparent border-none outline-none flex-1 text-emerald-400 ml-1 mt-4" autofocus onkeydown="handleCommand(event)">
+                </div>
+            </div>
+        </div>
+
+        <!-- STORE / APP WINDOW -->
+        <div id="app-window" class="hidden w-[90%] sm:w-[600px] h-[450px] bg-slate-900 border border-slate-800 rounded-lg absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/4 window-shadow flex flex-col z-30">
+            <div class="h-7 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-3">
+                <span id="app-window-title" class="text-xs font-semibold text-slate-400">Kali Advanced Apt Store</span>
+                <button onclick="closeApp()" class="text-red-500 hover:text-red-400 text-sm font-bold">✕</button>
+            </div>
+            <div class="flex-1 p-4 overflow-y-auto text-sm" id="app-window-body">
+                <!-- App content injects here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let installedTools = {
+            "nmap": { category: "Information Gathering", desc: "Network Mapper & Port Scanner.", active: true, execute: () => "Starting Nmap 7.93...\nScanning target 127.0.0.1...\n[+] Port 22/tcp OPEN (SSH)\n[+] Port 80/tcp OPEN (HTTP)\nScan Finished: 1 IP address up scanned in 2.1 seconds." },
+            "hydra": { category: "Password Attacks", desc: "Parallelized login cracker for SSH/FTP.", active: true, execute: () => "Hydra v9.4 crashing SSH protocol...\n[ATTACK] Active password blasting on user 'admin'...\n[SUCCESS] Host: 127.0.0.1 | Login: admin | Password: password123" },
+            "gobuster": { category: "Web Exploitation", desc: "Directory & file brute-forcing tool.", active: false, execute: () => "Gobuster v3.5 - Web Directory Fuzzing\n=========================================\n[+] /admin (Status: 200)\n[+] /secret_api (Status: 403)\n[+] /config.php (Status: 200)" },
+            "sqlmap": { category: "Web Exploitation", desc: "Automatic SQL injection & database takeover.", active: false, execute: () => "sqlmap/1.7 - automatic SQL injection tool\n[+] Testing URL parameter 'id' for vulnerability...\n[INFO] GET parameter 'id' is vulnerable!\n[DATABASE] Database dumped successfully: current_user='root@localhost'" },
+            "wireshark": { category: "Sniffing & Spoofing", desc: "Network packet analyzer console edition.", active: false, execute: () => "Capturing live packets on interface eth0...\n[PACKET] HTTP GET request captured from 192.168.1.5 -> Authorization: Base64 Decoded." },
+            "metasploit": { category: "Exploitation Tools", desc: "Penetration testing exploitation framework.", active: false, execute: () => "msfconsole running...\nConnected to framework backend.\n⚡ Exploit loaded: exploit/multi/handler\n⚡ Payload spawned: windows/meterpreter/reverse_tcp\n[+] Meterpreter session 1 opened successfully!" }
+        };
+
+        // UI Controls
+        function toggleMenu() { 
+            let menu = document.getElementById('kali-whisker-menu');
+            menu.classList.toggle('hidden'); 
+            if(!menu.classList.contains('hidden')) renderMenuApps();
+        }
+
+        function openTerminal() { 
+            document.getElementById('terminal-window').classList.remove('hidden'); 
+            document.getElementById('terminal-input').focus(); 
+        }
+
+        function closeTerminal() { document.getElementById('terminal-window').classList.add('hidden'); }
+        
+        function openApp(appName) {
+            let win = document.getElementById('app-window');
+            document.getElementById('app-window-title').innerText = appName;
+            win.classList.remove('hidden');
+            renderStore();
+        }
+
+        function closeApp() { document.getElementById('app-window').classList.add('hidden'); }
+
+        function closeMenuIfClickOutside(e) {
+            if(!e.target.closest('button') && !e.target.closest('#kali-whisker-menu')) {
+                document.getElementById('kali-whisker-menu').classList.add('hidden');
+            }
+        }
+
+        function renderMenuApps() {
+            let list = document.getElementById('menu-apps-list');
+            list.innerHTML = "";
+            Object.keys(installedTools).forEach(key => {
+                if(installedTools[key].active) {
+                    list.innerHTML += `<button onclick="runToolFromMenu('${key}')" class="w-full text-left px-2 py-1.5 rounded hover:bg-cyan-600 hover:text-black transition flex items-center justify-between">
+                        <span>🚀 ${key.toUpperCase()}</span> <span class="text-[10px] text-slate-500">${installedTools[key].category}</span>
+                    </button>`;
+                }
+            });
+        }
+
+        function runToolFromMenu(toolName) {
+            toggleMenu();
+            openTerminal();
+            executeCommand(toolName);
+        }
+
+        // Render Apt Store Content
+        function renderStore() {
+            let body = document.getElementById('app-window-body');
+            body.innerHTML = "<h3 class='text-cyan-400 font-bold mb-3'>Available Pentesting Tools</h3>";
+            Object.keys(installedTools).forEach(key => {
+                let tool = installedTools[key];
+                body.innerHTML += `
+                    <div class="flex items-center justify-between p-3 mb-2 bg-slate-950/50 rounded border border-slate-800">
+                        <div>
+                            <div class="font-bold text-slate-200">${key.toUpperCase()} <span class="text-xs font-normal text-slate-500">(${tool.category})</span></div>
+                            <div class="text-xs text-slate-400">${tool.desc}</div>
+                        </div>
+                        <button onclick="toggleToolStatus('${key}')" class="px-3 py-1 rounded text-xs font-bold ${tool.active ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}">
+                            ${tool.active ? 'Remove' : 'Install'}
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function toggleToolStatus(key) {
+            installedTools[key].active = !installedTools[key].active;
+            renderStore();
+        }
+
+        // Command Processor
+        function handleCommand(e) {
+            if (e.key === 'Enter') {
+                let input = e.target.value.trim();
+                if(input) executeCommand(input);
+                e.target.value = '';
+            }
+        }
+
+        function executeCommand(cmd) {
+            let history = document.getElementById('terminal-history');
+            let cleanCmd = cmd.toLowerCase().trim();
+            
+            history.innerHTML += `<div class="text-cyan-400 mt-2">┌──(root💀kali)-[~]<br>└─# ${cmd}</div>`;
+
+            if (cleanCmd === 'help') {
+                history.innerHTML += `<div class="text-slate-300 mt-1">Available commands:<br>- clear: Clear terminal history<br>- help: Show this menu<br>- sudo apt install [tool]: Install tool<br>- Installed Tools: ${Object.keys(installedTools).filter(k => installedTools[k].active).join(', ')}</div>`;
+            } else if (cleanCmd === 'clear') {
+                history.innerHTML = '';
+            } else if (cleanCmd.startsWith('sudo apt install ')) {
+                let toolToInstall = cleanCmd.replace('sudo apt install ', '').trim();
+                if (installedTools[toolToInstall]) {
+                    installedTools[toolToInstall].active = true;
+                    history.innerHTML += `<div class="text-emerald-400 mt-1">[+] ${toolToInstall} successfully installed!</div>`;
+                } else {
+                    history.innerHTML += `<div class="text-red-400 mt-1">E: Unable to locate package ${toolToInstall}</div>`;
+                }
+            } else if (installedTools[cleanCmd]) {
+                if (installedTools[cleanCmd].active) {
+                    history.innerHTML += `<div class="text-white mt-1 whitespace-pre-line">${installedTools[cleanCmd].execute()}</div>`;
+                } else {
+                    history.innerHTML += `<div class="text-yellow-400 mt-1">Command '${cleanCmd}' not found, but can be installed with: sudo apt install ${cleanCmd}</div>`;
+                }
+            } else {
+                history.innerHTML += `<div class="text-red-400 mt-1">bash: ${cmd}: command not found</div>`;
+            }
+
+            let termBody = document.getElementById('terminal-body');
+            termBody.scrollTop = termBody.scrollHeight;
+        }
+
+        // Clock updating
+        setInterval(() => {
+            let now = new Date();
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }, 1000);
+
+        // Initial setup
+        renderMenuApps();
+    </script>
+</body>
+</html>
